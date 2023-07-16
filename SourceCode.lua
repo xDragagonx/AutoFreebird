@@ -9,6 +9,9 @@ local previousSubZone
 local currentSubZone
 local alreadyInIrene = false
 local timerCount = 0
+local flag0 = false
+local freeBirdMaskId
+local CloseWardrobeUponSwapFlag = true
 
 function Main()
 	common.RegisterEventHandler(EVENT_AVATAR_ZONE_CHANGED,"EVENT_AVATAR_CLIENT_ZONE_CHANGED") --https://alloder.pro/md/LuaApi/EventAvatarZoneChanged.html
@@ -16,7 +19,7 @@ end
 
 function EVENT_AVATAR_ZONE_CHANGED()
 	local WanderingActorMaskId = GetWanderingActorMaskId()
-	local freeBirdMaskId = GetFreebirdMaskId()
+	freeBirdMaskId = GetFreebirdMaskId()
 	--ChatLog("FreebirdmaskId: ", freeBirdMaskId, "WanderingActorMaskId", WanderingActorMaskId)
 	-- if AreWeInIrene() then
 	-- 	ChatLog("Changed zone, checking if we were already in Irene: ", alreadyInIrene)
@@ -41,6 +44,7 @@ function EVENT_AVATAR_ZONE_CHANGED()
 		if CostumeIsOwned(WanderingActorMaskId) then --Check if the player owns the Freebird mask.
 			--common.RegisterEventHandler(EVENT_CHECKROOM_ITEM_CHANGED,"EVENT_CHECKROOM_ITEM_CHANGED") --https://alloder.pro/md/LuaApi/EventCheckroomItemChanged.html
 			OpenWardrobe()
+			ChatLog("Is WanderingActor nil?:",WanderingActorMaskId)
 			checkroomLib.EquipItem( WanderingActorMaskId )
 			--ChatLog("equipping WanderingActorMaskId")
 			common.RegisterEventHandler(CloseWardrobeCustom,"EVENT_SECOND_TIMER") --Starts delay before closing the wardrobe.
@@ -56,9 +60,16 @@ function EVENT_AVATAR_ZONE_CHANGED()
 			if CostumeIsOwned(freeBirdMaskId) then --Check if the player owns the Freebird mask.
 				common.RegisterEventHandler(EVENT_CHECKROOM_ITEM_CHANGED,"EVENT_CHECKROOM_ITEM_CHANGED") --https://alloder.pro/md/LuaApi/EventCheckroomItemChanged.html
 				OpenWardrobe()
-				checkroomLib.EquipItem( freeBirdMaskId )
-				--ChatLog("equipping Freebird mask")
-				common.RegisterEventHandler(CloseWardrobeCustom,"EVENT_SECOND_TIMER") --Starts delay before closing the wardrobe.
+				--ChatLog("The flag is:",flag0)
+				if flag0 == false then --Makes the equipping with delay happen only once. Then it equips as regularly.
+					--ChatLog("entering flag if false")
+					common.RegisterEventHandler(EquipDelay,"EVENT_SECOND_TIMER")
+					flag0 = true
+				else
+					ChatLog("entering else")
+					checkroomLib.EquipItem( freeBirdMaskId )
+					common.RegisterEventHandler(CloseWardrobeCustom,"EVENT_SECOND_TIMER") --Starts delay before closing the wardrobe.
+				end
 				alreadyInIrene = true
 			else
 				ChatLog(locales["NoFreeBirdMask"]) --Tells the player he doesn't have the Freebird mask.
@@ -85,7 +96,7 @@ function EVENT_AVATAR_ZONE_CHANGED()
 	if currentSubZone ~= locales["TheatreLocation"] and previousSubZone == locales["TheatreLocation"] then --Checking if we're leaving the Theatre.
 		--ChatLog("We have left Theatre. Previous subZone: ",previousSubZone," and current subZone: ", currentSubZone)
 		OpenWardrobe()
-		checkroomLib.EquipItem( freeBirdMaskId ) --Requipping the default headwear.
+		checkroomLib.EquipItem( freeBirdMaskId ) --Requipping the Freebirdmask headwear.
 		--ChatLog("equipped FreeBird mask")
 		common.RegisterEventHandler(CloseWardrobeCustom,"EVENT_SECOND_TIMER") --Starts delay before closing the wardrobe.
 		-- if firstSwap == true then --resetting flag for saving the default headwear.
@@ -102,7 +113,7 @@ function GetCategories() --https://alloder.pro/md/LuaApi/FunctionCheckroomLibGet
 	-- Was used to figure out the addon
 	local categories = checkroomLib.GetCategories()
 	for k, v in pairs(categories) do
-		ChatLog("key: ",k, "value: ",userMods.FromWString(v:GetInfo().name))
+		--ChatLog("key: ",k, "value: ",userMods.FromWString(v:GetInfo().name))
 	end
 	--ChatLog( categories[1]:GetInfo().name )
 end
@@ -221,6 +232,18 @@ function CloseWardrobeCustom()
 		--ChatLog("timerCount reached condition")
 		CloseWardrobe()
 		common.UnRegisterEventHandler(CloseWardrobeCustom,"EVENT_SECOND_TIMER")
+		timerCount = 0
+		return
+	end
+	timerCount = timerCount + 1
+end
+function EquipDelay()
+	--ChatLog("entering event second timer EquipDelay func & timerCount is: ",timerCount,"and the ID of the mask is:", freeBirdMaskId)
+	if timerCount == 1 then
+		--ChatLog("timerCount reached condition:", timerCount,"and freebirdmaskid is:", freeBirdMaskId)
+		checkroomLib.EquipItem( freeBirdMaskId )
+		CloseWardrobe()
+		common.UnRegisterEventHandler(EquipDelay,"EVENT_SECOND_TIMER")
 		timerCount = 0
 		return
 	end
