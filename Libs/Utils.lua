@@ -6,11 +6,11 @@ local _lower = string.lower
 local _upper = string.upper
 
 function string.lower(s)
-    return _lower(s:gsub("([ï¿½-ï¿½])",function(c) return string.char(c:byte()+32) end):gsub("ï¿½", "ï¿½"))
+    return _lower(s:gsub("([À-ß])",function(c) return string.char(c:byte()+32) end):gsub("¨", "¸"))
 end
 
 function string.upper(s)
-    return _upper(s:gsub("([ï¿½-ï¿½])",function(c) return string.char(c:byte()-32) end):gsub("ï¿½", "ï¿½"))
+    return _upper(s:gsub("([à-ÿ])",function(c) return string.char(c:byte()-32) end):gsub("¸", "¨"))
 end
 
 function toWString(text)
@@ -294,11 +294,12 @@ function getForm(widget)
 end
 
 function createWidget(parent, widgetName, templateName, alignX, alignY, width, height, posX, posY, noParent)
-	local desc=getDesc(templateName)
-	if not desc and parent then return nil end
+	local widget = nil
 	local owner=getForm(parent)
-	local widget=owner and owner:CreateWidgetByDesc(desc) or common.AddonCreateChildForm(templateName)
-	if parent and widget and not noParent then parent:AddChild(widget) end --
+	local desc = getDesc(templateName)
+	if not desc and parent then return nil end
+	widget = owner and owner:CreateWidgetByDesc(desc)
+	if parent and widget and not noParent then parent:AddChild(widget) end
 	setName(widget, widgetName)
 	align(widget, alignX, alignY)
 	move(widget, posX, posY)
@@ -326,7 +327,8 @@ end
 function changeCheckBox(widget)
 	if not widget or not widget.GetVariantCount then return end
 	if not widget.GetVariant or not widget.SetVariant then return end
-
+	if widget:GetVariantCount()<2 then return end
+	
 	if 0==widget:GetVariant() then 	widget:SetVariant(1)
 	else 							widget:SetVariant(0) end
 end
@@ -350,63 +352,6 @@ function getModFromFlags(flags)
 	if alt then flags=flags-2 end
 	local shift=flags>0
 	return ctrl, alt, shift
-end
-
---------------------------------------------------------------------------------
--- Timers functions
---------------------------------------------------------------------------------
-
-local template=createWidget(nil, "Template", "Template")
-local timers={}
-
-function timer(params)
-	if not params.effectType == ET_FADE then return end
-	local name=nil
-	for i, j in pairs(timers) do
-		if j and equals(params.wtOwner, j.widget) then
-			name=i
-		end
-	end
-	if not name then return end
-
-
-	if timers[name] then
-		if timers[name].widget and not timers[name].one then
-			timers[name].widget:PlayFadeEffect( 1.0, 1.0, timers[name].speed*1000, EA_MONOTONOUS_INCREASE )
-		end
-		userMods.SendEvent( timers[name].event, {sender = common.GetAddonName()} )
-	end
-end
-
-function startTimer(name, eventname, speed, one)
-	if name and timers[name] then destroy(timers[name].widget) end
-	setTemplateWidget(template)
-	local timerWidget=createWidget(mainForm, name, "Timer")
-	if not timerWidget or not name or not eventname then return nil end
-	timers[name]={}
-	timers[name].event=eventname
-	timers[name].widget=timerWidget
-	timers[name].one=one
-	timers[name].speed=tonumber(speed) or 1
-
-	common.RegisterEventHandler(timer, "EVENT_EFFECT_FINISHED")
-    timerWidget:PlayFadeEffect(1.0, 1.0, timers[name].speed*1000, EA_MONOTONOUS_INCREASE)
-	return true
-end
-
-function stopTimer(name)
-    common.UnRegisterEventHandler( timer, "EVENT_EFFECT_FINISHED" )
-end
-
-function setTimeout(name, speed)
-	if name and timers[name] and speed then
-		timers[name].speed=tonumber(speed) or 1
-	end
-end
-
-function destroyTimer(name)
-	if timers[name] then destroy(timers[name].widget) end
-	timers[name]=nil
 end
 
 --------------------------------------------------------------------------------
@@ -511,4 +456,27 @@ function message(text, color, fontSize)
 
 	text=common.GetAddonName()..": "..(toStringUtils(text) or "nil")
 	chat:PushFrontValuedText(toValuedText(text, nil, nil, 16, nil, nil, "AllodsSystem"))
+end
+
+--------------------------------------------------------------------------------
+-- Table functions
+--------------------------------------------------------------------------------
+
+function tableSize( tab )
+	if type( tab ) ~= "table" then
+		return 0
+	end
+
+	local size = 0
+	for key, val in pairs( tab ) do
+		size = size + 1
+	end
+	return size
+end
+
+function CloneTable( t )
+	if type( t ) ~= "table" then return t end
+	local c = {}
+	for i, v in pairs( t ) do c[ i ] = CloneTable( v ) end
+	return c
 end
